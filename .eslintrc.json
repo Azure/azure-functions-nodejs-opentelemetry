@@ -1,0 +1,49 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "plugins": ["@typescript-eslint", "header", "deprecation", "simple-import-sort", "import"],
+    "parserOptions": {
+        "project": "tsconfig.json",
+        "sourceType": "module"
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:prettier/recommended"
+    ],
+    "rules": {
+        "header/header": [
+            2,
+            "line",
+            [" Copyright (c) .NET Foundation. All rights reserved.", " Licensed under the MIT License."],
+            2
+        ],
+        "deprecation/deprecation": "error",
+        "@typescript-eslint/no-empty-interface": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-namespace": "off",
+        "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "ignoreRestSiblings": true }],
+        "prefer-const": ["error", { "destructuring": "all" }],
+        "@typescript-eslint/explicit-member-accessibility": [
+            "error",
+            {
+                "accessibility": "no-public"
+            }
+        ],
+        "no-return-await": "off",
+        "@typescript-eslint/return-await": "error",
+        "eqeqeq": "error",
+        "@typescript-eslint/no-empty-function": "off",
+        "simple-import-sort/imports": [
+            "error",
+            {
+                "groups": [["^\\u0000", "^node:", "^@?\\w", "^", "^\\."]]
+            }
+        ],
+        "simple-import-sort/exports": "error",
+        "import/first": "error",
+        "import/newline-after-import": "error",
+        "import/no-duplicates": "error"
+    },
+    "ignorePatterns": ["**/*.js", "**/*.mjs", "**/*.cjs", "out", "dist"]
+}
