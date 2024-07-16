@@ -2,7 +2,7 @@
 
 |Branch|Status|Support level|Node.js Versions|
 |---|---|---|---|
-|main|[![Build Status](https://img.shields.io/azure-devops/build/azfunc/public/514/main)](https://azfunc.visualstudio.com/public/_build/latest?definitionId=514&branchName=main) [![Test Status](https://img.shields.io/azure-devops/tests/azfunc/public/514/main?compact_message)](https://azfunc.visualstudio.com/public/_build/latest?definitionId=514&branchName=main)|Preview|20, 18|
+|main|[![Build Status](https://img.shields.io/azure-devops/build/azfunc/public/911/main)](https://azfunc.visualstudio.com/public/_build/latest?definitionId=911&branchName=main) [![Test Status](https://img.shields.io/azure-devops/tests/azfunc/public/911/main?compact_message)](https://azfunc.visualstudio.com/public/_build/latest?definitionId=911&branchName=main)|Preview|20, 18|
 
 This module provides automatic instrumentation for the [`@azure/functions`](https://learn.microsoft.com/azure/azure-functions/functions-reference-node?pivots=nodejs-model-v4) module, which may be loaded using the [`@opentelemetry/sdk-trace-node`](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node) package.
 
