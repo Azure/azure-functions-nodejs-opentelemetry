@@ -53,13 +53,13 @@ export class AzureFunctionsInstrumentationESM extends InstrumentationBase {
         const preInvocationDisposable = azFunc.app.hook.preInvocation((context) => {
             const traceContext = context.invocationContext.traceContext;
             if (traceContext) {
-                const extractedContext = propagation.extract(otelContext.active(), {
-                    traceparent: traceContext.traceParent || traceContext.traceParent,
-                    tracestate: traceContext.traceState || traceContext.traceState,
-                });
-
-                const currentContext = extractedContext || otelContext.active();
-                context.functionHandler = otelContext.bind(currentContext, context.functionHandler);
+                context.functionHandler = otelContext.bind(
+                    propagation.extract(otelContext.active(), {
+                        traceparent: traceContext.traceParent,
+                        tracestate: traceContext.traceState,
+                    }),
+                    context.functionHandler
+                );
             }
         });
 
