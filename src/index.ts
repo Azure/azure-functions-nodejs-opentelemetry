@@ -2,3 +2,4 @@
 // Licensed under the MIT License.
 
 export { AzureFunctionsInstrumentation } from './instrumentation';
+export { AzureFunctionsInstrumentationESM } from './instrumentationESM';
