@@ -6,7 +6,7 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { expect } from 'chai';
 import { AzureFunctionsInstrumentation } from '../src/instrumentation';
 import sinon = require('sinon');
-import { context as otelContext, propagation } from '@opentelemetry/api';
+import { context as otelContext, propagation, trace } from '@opentelemetry/api';
 
 describe('AzureFunctionsInstrumentation', () => {
     let instrumentation = new AzureFunctionsInstrumentation();
@@ -118,11 +118,23 @@ it('should include CategoryName attribute from log context', () => {
 
     it('should bind trace context on preInvocation', () => {
         const bindStub = sinon.stub(otelContext, 'bind');
-        const mockContext = otelContext.active(); // Use a valid Context object
+        const mockContext = otelContext.active();
         const extractStub = sinon.stub(propagation, 'extract').returns(mockContext);
+        
+        // Mock span context that will be extracted
+        const mockSpanContext = {
+            traceId: '0af7651916cd43dd8448eb211c80319c',
+            spanId: 'b7ad6b7169203331',
+            traceFlags: 1,
+            isRemote: true
+        };
+        const getSpanContextStub = sinon.stub(trace, 'getSpanContext').returns(mockSpanContext as any);
+        const mockRemoteSpan = {} as any;
+        const wrapSpanContextStub = sinon.stub(trace, 'wrapSpanContext').returns(mockRemoteSpan);
+        const contextWithSpan = {} as any;
+        const setSpanStub = sinon.stub(trace, 'setSpan').returns(contextWithSpan);
 
-        // Initialize the handler with a default value
-        let preInvokeHandler: ((context: any) => void) | null = null as ((context: any) => void) | null;
+        let preInvokeHandler: ((context: any) => void) | null = null;
 
         (mockAzFunc.app.hook.preInvocation as sinon.SinonStub).callsFake((fn) => {
             preInvokeHandler = fn;
@@ -141,30 +153,32 @@ it('should include CategoryName attribute from log context', () => {
         };
 
         instrumentation['_patch'](mockAzFunc);
-        // Verify that the hook was registered
         expect((mockAzFunc.app.hook.preInvocation as sinon.SinonStub).calledOnce).to.be.true;
-
-        // Make sure preInvokeHandler was assigned
         expect(preInvokeHandler).to.not.be.null;
 
-        // Now call the handler
-        if (preInvokeHandler) {
-            preInvokeHandler(context);
-        } else {
-            throw new Error('preInvokeHandler was not assigned by the callFake');
-        }
+        preInvokeHandler!(context);
 
-        // Verify the OpenTelemetry context extraction and binding
+        // Verify the OpenTelemetry context extraction
         expect(extractStub.calledOnce).to.be.true;
         expect(extractStub.firstCall.args[1]).to.deep.include({
             traceparent: 'trace-parent-123',
             tracestate: 'state-xyz',
         });
-        expect(bindStub.calledWith(mockContext, fnHandler)).to.be.true;
+
+        // Verify span context was extracted and wrapped
+        expect(getSpanContextStub.calledOnce).to.be.true;
+        expect(wrapSpanContextStub.calledWith(mockSpanContext)).to.be.true;
+        expect(setSpanStub.calledWith(mockContext, mockRemoteSpan)).to.be.true;
+
+        // Verify the context with span was bound to the function handler
+        expect(bindStub.calledWith(contextWithSpan, fnHandler)).to.be.true;
 
         // Clean up stubs
         bindStub.restore();
         extractStub.restore();
+        getSpanContextStub.restore();
+        wrapSpanContextStub.restore();
+        setSpanStub.restore();
     });
 
     it('should disable WorkerOpenTelemetryEnabled on unpatch', () => {

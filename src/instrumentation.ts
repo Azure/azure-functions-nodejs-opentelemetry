@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import type * as AzFunc from '@azure/functions';
-import { context as otelContext, propagation } from '@opentelemetry/api';
+import { context as otelContext, propagation, trace } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
     InstrumentationBase,
@@ -57,13 +57,24 @@ export class AzureFunctionsInstrumentation extends InstrumentationBase {
             azFunc.app.hook.preInvocation((context) => {
                 const traceContext = context.invocationContext.traceContext;
                 if (traceContext) {
-                    context.functionHandler = otelContext.bind(
-                        propagation.extract(otelContext.active(), {
-                            traceparent: traceContext.traceParent,
-                            tracestate: traceContext.traceState,
-                        }),
-                        context.functionHandler
-                    );
+                    // Extract the remote span context from the Azure Functions Host
+                    const extractedContext = propagation.extract(otelContext.active(), {
+                        traceparent: traceContext.traceParent,
+                        tracestate: traceContext.traceState,
+                    });
+
+                    // Get the span context that was set by propagation.extract
+                    const spanContext = trace.getSpanContext(extractedContext);
+
+                    if (spanContext) {
+                        // Wrap the remote span context in a NonRecordingSpan and set it as active
+                        // This allows downstream instrumentations to find an active span and create child spans
+                        const remoteSpan = trace.wrapSpanContext(spanContext);
+                        const contextWithSpan = trace.setSpan(extractedContext, remoteSpan);
+
+                        // Bind the context with the active span to the function handler
+                        context.functionHandler = otelContext.bind(contextWithSpan, context.functionHandler);
+                    }
                 }
             })
         );

@@ -4,7 +4,7 @@
 // Import Azure Functions types
 import type * as AzFunc from '@azure/functions';
 // Import OpenTelemetry APIs for context propagation
-import { context as otelContext, propagation } from '@opentelemetry/api';
+import { context as otelContext, propagation, trace } from '@opentelemetry/api';
 // Import OpenTelemetry severity levels for logging
 import { SeverityNumber } from '@opentelemetry/api-logs';
 // Import OpenTelemetry instrumentation base classes
@@ -74,14 +74,24 @@ export class AzureFunctionsInstrumentationESM extends InstrumentationBase {
         const preInvocationDisposable = azFunc.app.hook.preInvocation((context) => {
             const traceContext = context.invocationContext.traceContext;
             if (traceContext) {
-                // Extract trace context from Azure Functions invocation context
+                // Extract the remote span context from Azure Functions Host
                 const extractedContext = propagation.extract(otelContext.active(), {
                     traceparent: traceContext.traceParent,
                     tracestate: traceContext.traceState,
                 });
 
-                // Bind the extracted context to the function handler
-                context.functionHandler = otelContext.bind(extractedContext, context.functionHandler);
+                // Get the span context that was set by propagation.extract
+                const spanContext = trace.getSpanContext(extractedContext);
+
+                if (spanContext) {
+                    // Wrap the remote span context in a NonRecordingSpan and set it as active
+                    // This allows downstream instrumentations to find an active span and create child spans
+                    const remoteSpan = trace.wrapSpanContext(spanContext);
+                    const contextWithSpan = trace.setSpan(extractedContext, remoteSpan);
+
+                    // Bind the extracted context to the function handler
+                    context.functionHandler = otelContext.bind(contextWithSpan, context.functionHandler);
+                }
             }
         });
 

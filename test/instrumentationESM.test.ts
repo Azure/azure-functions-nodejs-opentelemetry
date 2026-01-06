@@ -4,7 +4,7 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { AzureFunctionsInstrumentationESM } from '../src/instrumentationESM';
 import sinon = require('sinon');
-import { context as otelContext } from '@opentelemetry/api';
+import { context as otelContext, propagation, trace } from '@opentelemetry/api';
 import { expect } from 'chai';
 
 describe('AzureFunctionsInstrumentationESM', () => {
@@ -70,6 +70,19 @@ describe('AzureFunctionsInstrumentationESM', () => {
 
     it('should bind context in preInvocation hook if traceContext exists', () => {
         const bindStub = sinon.stub(otelContext, 'bind');
+        const extractStub = sinon.stub(propagation, 'extract').returns(otelContext.active());
+        
+        const mockSpanContext = {
+            traceId: '0af7651916cd43dd8448eb211c80319c',
+            spanId: 'b7ad6b7169203331',
+            traceFlags: 1,
+            isRemote: true
+        };
+        const getSpanContextStub = sinon.stub(trace, 'getSpanContext').returns(mockSpanContext as any);
+        const mockRemoteSpan = {} as any;
+        const wrapSpanContextStub = sinon.stub(trace, 'wrapSpanContext').returns(mockRemoteSpan);
+        const setSpanStub = sinon.stub(trace, 'setSpan').returns({} as any);
+        
         instrumentation.registerAzFunc(mockAzFunc);
 
         const handlerStub = sinon.stub();
@@ -88,8 +101,15 @@ describe('AzureFunctionsInstrumentationESM', () => {
         preInvocationHandler(context);
 
         expect(bindStub.called).to.be.true;
+        expect(extractStub.called).to.be.true;
+        expect(wrapSpanContextStub.called).to.be.true;
+        expect(setSpanStub.called).to.be.true;
 
         bindStub.restore();
+        extractStub.restore();
+        getSpanContextStub.restore();
+        wrapSpanContextStub.restore();
+        setSpanStub.restore();
     });
 
     it('should not bind context in preInvocation if no traceContext', () => {
