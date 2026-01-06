@@ -45,33 +45,31 @@ describe('AzureFunctionsInstrumentation', () => {
         (mockAzFunc.Disposable.from as sinon.SinonStub).resetHistory();
     });
 
-it('should include CategoryName attribute from log context', () => {
-  let logHandler: ((event: { message: string; level: string; category: string }) => void) | undefined;
- 
-  (mockAzFunc.app.hook.log as sinon.SinonStub).callsFake((fn) => {
-    logHandler = fn;
-    return { dispose: sinon.stub() };
-  });
- 
-  instrumentation['_patch'](mockAzFunc);
- 
-  const logEvent = {
-    message: 'Category was set',
-    level: 'information',
-    category: 'Host.General',
-  };
-  logHandler?.(logEvent);
- 
-  expect(mockLoggerEmit.emit.calledOnce).to.be.true;
-  const payload = mockLoggerEmit.emit.firstCall.args[0];
- 
-  expect(payload.body).to.equal('Category was set');
-  expect(payload.severityText).to.equal('information');
-  expect(payload.attributes).to.deep.equal({ CategoryName: 'Host.General' });
-});
+    it('should include CategoryName attribute from log context', () => {
+        let logHandler: ((event: { message: string; level: string; category: string }) => void) | undefined;
 
-    
-    
+        (mockAzFunc.app.hook.log as sinon.SinonStub).callsFake((fn) => {
+            logHandler = fn;
+            return { dispose: sinon.stub() };
+        });
+
+        instrumentation['_patch'](mockAzFunc);
+
+        const logEvent = {
+            message: 'Category was set',
+            level: 'information',
+            category: 'Host.General',
+        };
+        logHandler?.(logEvent);
+
+        expect(mockLoggerEmit.emit.calledOnce).to.be.true;
+        const payload = mockLoggerEmit.emit.firstCall.args[0];
+
+        expect(payload.body).to.equal('Category was set');
+        expect(payload.severityText).to.equal('information');
+        expect(payload.attributes).to.deep.equal({ CategoryName: 'Host.General' });
+    });
+
     it('should set WorkerOpenTelemetryEnabled to true and register hooks on patch', () => {
         const logDisposeStub = { dispose: sinon.stub() };
         const preInvokeDisposeStub = { dispose: sinon.stub() };
@@ -120,13 +118,13 @@ it('should include CategoryName attribute from log context', () => {
         const bindStub = sinon.stub(otelContext, 'bind');
         const mockContext = otelContext.active();
         const extractStub = sinon.stub(propagation, 'extract').returns(mockContext);
-        
+
         // Mock span context that will be extracted
         const mockSpanContext = {
             traceId: '0af7651916cd43dd8448eb211c80319c',
             spanId: 'b7ad6b7169203331',
             traceFlags: 1,
-            isRemote: true
+            isRemote: true,
         };
         const getSpanContextStub = sinon.stub(trace, 'getSpanContext').returns(mockSpanContext as any);
         const mockRemoteSpan = {} as any;
@@ -156,6 +154,7 @@ it('should include CategoryName attribute from log context', () => {
         expect((mockAzFunc.app.hook.preInvocation as sinon.SinonStub).calledOnce).to.be.true;
         expect(preInvokeHandler).to.not.be.null;
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         preInvokeHandler!(context);
 
         // Verify the OpenTelemetry context extraction

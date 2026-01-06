@@ -71,18 +71,18 @@ describe('AzureFunctionsInstrumentationESM', () => {
     it('should bind context in preInvocation hook if traceContext exists', () => {
         const bindStub = sinon.stub(otelContext, 'bind');
         const extractStub = sinon.stub(propagation, 'extract').returns(otelContext.active());
-        
+
         const mockSpanContext = {
             traceId: '0af7651916cd43dd8448eb211c80319c',
             spanId: 'b7ad6b7169203331',
             traceFlags: 1,
-            isRemote: true
+            isRemote: true,
         };
         const getSpanContextStub = sinon.stub(trace, 'getSpanContext').returns(mockSpanContext as any);
         const mockRemoteSpan = {} as any;
         const wrapSpanContextStub = sinon.stub(trace, 'wrapSpanContext').returns(mockRemoteSpan);
         const setSpanStub = sinon.stub(trace, 'setSpan').returns({} as any);
-        
+
         instrumentation.registerAzFunc(mockAzFunc);
 
         const handlerStub = sinon.stub();
