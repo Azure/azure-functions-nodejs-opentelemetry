@@ -46,7 +46,7 @@ export class AzureFunctionsInstrumentation extends InstrumentationBase {
                     severityNumber: toOtelSeverityNumber(context.level),
                     severityText: context.level,
                     attributes: {
-                        CategoryName: context.category
+                        CategoryName: context.category,
                     },
                 });
             })
