@@ -45,6 +45,33 @@ describe('AzureFunctionsInstrumentation', () => {
         (mockAzFunc.Disposable.from as sinon.SinonStub).resetHistory();
     });
 
+it('should include CategoryName attribute from log context', () => {
+  let logHandler: ((event: { message: string; level: string; category: string }) => void) | undefined;
+ 
+  (mockAzFunc.app.hook.log as sinon.SinonStub).callsFake((fn) => {
+    logHandler = fn;
+    return { dispose: sinon.stub() };
+  });
+ 
+  instrumentation['_patch'](mockAzFunc);
+ 
+  const logEvent = {
+    message: 'Category was set',
+    level: 'information',
+    category: 'Host.General',
+  };
+  logHandler?.(logEvent);
+ 
+  expect(mockLoggerEmit.emit.calledOnce).to.be.true;
+  const payload = mockLoggerEmit.emit.firstCall.args[0];
+ 
+  expect(payload.body).to.equal('Category was set');
+  expect(payload.severityText).to.equal('information');
+  expect(payload.attributes).to.deep.equal({ CategoryName: 'Host.General' });
+});
+
+    
+    
     it('should set WorkerOpenTelemetryEnabled to true and register hooks on patch', () => {
         const logDisposeStub = { dispose: sinon.stub() };
         const preInvokeDisposeStub = { dispose: sinon.stub() };
