@@ -3,18 +3,17 @@
 
 import type * as AzFunc from '@azure/functions';
 import { context as otelContext, propagation } from '@opentelemetry/api';
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-    InstrumentationBase,
-    InstrumentationConfig,
-    InstrumentationNodeModuleDefinition,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase, InstrumentationNodeModuleDefinition } from '@opentelemetry/instrumentation';
+import { AzureFunctionsInstrumentationConfig } from '../types/config';
 import { version } from './constants';
+import { createLogRecord, StructuredLogHookContext } from './logging';
 
-export class AzureFunctionsInstrumentation extends InstrumentationBase {
+export class AzureFunctionsInstrumentation extends InstrumentationBase<AzureFunctionsInstrumentationConfig> {
     private _azFuncDisposable: AzFunc.Disposable | undefined;
+    private _logsEnabled = false;
+    private _warnedInvalidAttributes = false;
 
-    constructor(config: InstrumentationConfig = {}) {
+    constructor(config: AzureFunctionsInstrumentationConfig = {}) {
         super('@azure/functions-opentelemetry-instrumentation', version, config);
     }
 
@@ -27,32 +26,27 @@ export class AzureFunctionsInstrumentation extends InstrumentationBase {
         );
     }
 
-    private _patch(azFunc: typeof AzFunc): typeof AzFunc {
+    protected _patch(azFunc: typeof AzFunc): typeof AzFunc {
+        if (this._azFuncDisposable) {
+            return azFunc;
+        }
         const disposables: AzFunc.Disposable[] = [];
-
-        // Tell the Azure Functions Host that we will send logs directly from Node.js
-        // (so that the host doesn't duplicate)
-        azFunc.app.setup({
-            capabilities: {
-                WorkerOpenTelemetryEnabled: true,
-            },
-        });
-
-        // Send logs directly from Node.js
-        disposables.push(
-            azFunc.app.hook.log((context) => {
-                this.logger.emit({
-                    body: context.message,
-                    severityNumber: toOtelSeverityNumber(context.level),
-                    severityText: context.level,
-                    attributes: {
-                        CategoryName: context.category
+        if (this.getConfig().structuredLogExporterReady === true) {
+            const registerLogHook: (
+                handler: (context: StructuredLogHookContext) => void,
+                options?: { structuredLogProperties: boolean }
+            ) => AzFunc.Disposable = azFunc.app.hook.log;
+            disposables.push(
+                registerLogHook(
+                    (context) => {
+                        this.logger.emit(createLogRecord(context, () => this._warnInvalidAttributes()));
                     },
-                });
-            })
-        );
-
-        // Ensure Azure Functions Host trace context is propagated onto the user's Node.js function handler
+                    { structuredLogProperties: true }
+                )
+            );
+            azFunc.app.setup({ capabilities: { WorkerOpenTelemetryEnabled: true } });
+            this._logsEnabled = true;
+        }
         disposables.push(
             azFunc.app.hook.preInvocation((context) => {
                 const traceContext = context.invocationContext.traceContext;
@@ -67,37 +61,29 @@ export class AzureFunctionsInstrumentation extends InstrumentationBase {
                 }
             })
         );
-
         this._azFuncDisposable = azFunc.Disposable.from(...disposables);
         return azFunc;
     }
 
-    private _unPatch(azFunc: typeof AzFunc): void {
+    protected _unPatch(azFunc: typeof AzFunc): void {
         this._azFuncDisposable?.dispose();
-
-        azFunc.app.setup({
-            capabilities: {
-                WorkerOpenTelemetryEnabled: false,
-            },
-        });
+        this._azFuncDisposable = undefined;
+        if (this._logsEnabled) {
+            this._logsEnabled = false;
+            try {
+                azFunc.app.setup({ capabilities: { WorkerOpenTelemetryEnabled: false } });
+            } catch {
+                this._diag.warn(
+                    'Log forwarding stopped, but host capabilities cannot change after startup. Restart the app to restore host log export.'
+                );
+            }
+        }
     }
-}
 
-function toOtelSeverityNumber(level: AzFunc.LogLevel): SeverityNumber {
-    switch (level) {
-        case 'information':
-            return SeverityNumber.INFO;
-        case 'debug':
-            return SeverityNumber.DEBUG;
-        case 'error':
-            return SeverityNumber.ERROR;
-        case 'trace':
-            return SeverityNumber.TRACE;
-        case 'warning':
-            return SeverityNumber.WARN;
-        case 'critical':
-            return SeverityNumber.FATAL;
-        default:
-            return SeverityNumber.UNSPECIFIED;
+    private _warnInvalidAttributes(): void {
+        if (!this._warnedInvalidAttributes) {
+            this._warnedInvalidAttributes = true;
+            this._diag.warn('Skipped invalid or reserved structured log attributes.');
+        }
     }
 }

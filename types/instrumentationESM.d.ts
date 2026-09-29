@@ -2,15 +2,8 @@
 // Licensed under the MIT License.
 
 import type * as AzFunc from '@azure/functions';
-import {
-    InstrumentationBase,
-    InstrumentationConfig,
-    InstrumentationNodeModuleDefinition,
-} from '@opentelemetry/instrumentation';
+import { AzureFunctionsInstrumentation } from './instrumentation';
 
-export declare class AzureFunctionsInstrumentationESM extends InstrumentationBase {
-    constructor(config?: InstrumentationConfig);
-
-    protected init(): InstrumentationNodeModuleDefinition;
+export declare class AzureFunctionsInstrumentationESM extends AzureFunctionsInstrumentation {
     registerAzFunc(azFunc: typeof AzFunc): void;
 }
