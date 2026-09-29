@@ -1,20 +1,18 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License.
 
-// This file will be compiled by multiple versions of TypeScript as decribed in ./test/types.test.ts to verify there are no errors
+import {
+    AzureFunctionsInstrumentation,
+    AzureFunctionsInstrumentationConfig,
+    AzureFunctionsInstrumentationESM,
+} from '@azure/functions-opentelemetry-instrumentation';
 
-import { AzureFunctionsInstrumentation } from '@azure/functions-opentelemetry-instrumentation';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-
-const provider = new NodeTracerProvider();
-provider.register();
-
-registerInstrumentations({
-    instrumentations: [
-        // Azure Functions instrumentation expects HTTP layer to be instrumented
-        new HttpInstrumentation(),
-        new AzureFunctionsInstrumentation(),
-    ],
-});
+const config: AzureFunctionsInstrumentationConfig = { enabled: false, structuredLogExporterReady: true };
+new AzureFunctionsInstrumentation(config);
+new AzureFunctionsInstrumentationESM(config);
+new AzureFunctionsInstrumentation();
+new AzureFunctionsInstrumentationESM();
+// @ts-expect-error Exporter readiness must be a boolean.
+new AzureFunctionsInstrumentation({ structuredLogExporterReady: 'yes' });
+// @ts-expect-error Exporter readiness must be a boolean in ESM too.
+new AzureFunctionsInstrumentationESM({ structuredLogExporterReady: 'yes' });

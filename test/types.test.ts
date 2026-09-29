@@ -7,17 +7,15 @@ import { Context } from 'mocha';
 import * as path from 'path';
 
 describe('Public TypeScript types', () => {
-    for (const tsVersion of ['4']) {
-        it(`builds with TypeScript v${tsVersion}`, async function (this: Context) {
-            this.timeout(10 * 1000);
-            expect(await runTsBuild(tsVersion)).to.equal(2);
-        });
-    }
+    it('builds public types with the project TypeScript compiler', async function (this: Context) {
+        this.timeout(10 * 1000);
+        expect(await runTsBuild()).to.equal(0);
+    });
 });
 
-async function runTsBuild(tsVersion: string): Promise<number> {
+async function runTsBuild(): Promise<number> {
     const repoRoot = path.join(__dirname, '..');
-    const tscPath = path.join(repoRoot, 'node_modules', `typescript${tsVersion}`, 'bin', 'tsc');
+    const tscPath = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
     const projectFile = path.join(repoRoot, 'test', 'types', 'tsconfig.json');
     return new Promise<number>((resolve, reject) => {
         const cmd = cp.spawn('node', [tscPath, '--project', projectFile]);
